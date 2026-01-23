@@ -61,17 +61,16 @@ app.whenReady().then(() => {
 
   ipcMain.handle('layout:load', async () => {
     const layoutPath = path.join(app.getAppPath(), 'layout.json');
-    const contentPath = path.join(app.getAppPath(), 'content.json');
     const raw = await fs.readFile(layoutPath, 'utf8');
     const layout = JSON.parse(raw);
-    let content = {};
-    try {
-      const contentRaw = await fs.readFile(contentPath, 'utf8');
-      content = JSON.parse(contentRaw);
-    } catch (err) {
-      content = {};
-    }
+    const content = await loadContent();
     return mergeLayoutWithContent(layout, content);
+  });
+
+  ipcMain.handle('content:get', async (event, { id } = {}) => {
+    const content = await loadContent();
+    if (!id) return content;
+    return content[id] || null;
   });
 
   ipcMain.handle('terminal:create', (event, opts = {}) => {
@@ -119,6 +118,16 @@ app.whenReady().then(() => {
     return { ok: true };
   });
 });
+
+async function loadContent() {
+  const contentPath = path.join(app.getAppPath(), 'content.json');
+  try {
+    const contentRaw = await fs.readFile(contentPath, 'utf8');
+    return JSON.parse(contentRaw);
+  } catch (err) {
+    return {};
+  }
+}
 
 function mergeLayoutWithContent(node, contentById) {
   if (!node || typeof node !== 'object') return node;

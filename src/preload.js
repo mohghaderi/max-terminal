@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('maxTerminal', {
   loadLayout: () => ipcRenderer.invoke('layout:load'),
+  getContent: (id) => ipcRenderer.invoke('content:get', { id }),
   createTerminal: (opts) => ipcRenderer.invoke('terminal:create', opts),
   refreshTerminal: (id) => ipcRenderer.invoke('terminal:refresh', { id }),
   sendInput: (id, data) => ipcRenderer.send('terminal:input', { id, data }),

@@ -128,7 +128,23 @@ function buildPane(node) {
     webview.className = 'webview';
     webview.setAttribute('allowpopups', '');
     content.appendChild(webview);
-    refresh.addEventListener('click', () => webview.reload());
+    refresh.addEventListener('click', async () => {
+      if (node.contentId && window.maxTerminal.getContent) {
+        try {
+          const fresh = await window.maxTerminal.getContent(node.contentId);
+          const nextUrl = fresh?.url || node.url;
+          if (nextUrl) {
+            webview.src = nextUrl;
+          } else {
+            webview.reload();
+          }
+          return;
+        } catch (err) {
+          // fall through to reload
+        }
+      }
+      webview.reload();
+    });
   }
 
   return pane;
