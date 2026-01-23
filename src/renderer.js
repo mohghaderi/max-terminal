@@ -1,5 +1,7 @@
 const root = document.getElementById('root');
 const terminalSessions = new Map();
+const initialCommandQueues = new Map();
+const initialCommandTimers = new Map();
 let paneCounter = 0;
 
 function nextPaneId() {
@@ -143,12 +145,14 @@ window.maxTerminal.onTerminalData(({ id, data }) => {
   const session = terminalSessions.get(id);
   if (!session) return;
   session.term.write(data);
+  startInitialCommandQueue(id);
 });
 
 window.maxTerminal.onTerminalExit(({ id, exitCode }) => {
   const session = terminalSessions.get(id);
   if (!session) return;
   session.term.write(`\r\n[process exited ${exitCode}]\r\n`);
+  clearInitialCommandQueue(id);
 });
 
 window.addEventListener('resize', handleResize);
@@ -162,22 +166,23 @@ window.addEventListener('resize', handleResize);
 
 function normalizeInitialCommands(value) {
   if (!value) return [];
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item)).filter((item) => item.trim().length > 0);
-  }
-  const asString = String(value).trim();
-  return asString ? [asString] : [];
+  const items = Array.isArray(value) ? value : [value];
+  return items
+    .flatMap((item) => String(item).split(/\r?\n/))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
 function queueInitialCommands(id, commands) {
-  setTimeout(() => {
-    commands.forEach((command) => {
-      const payload = command.endsWith('\n') || command.endsWith('\r')
-        ? command
-        : `${command}\r`;
-      window.maxTerminal.sendInput(id, payload);
-    });
-  }, 50);
+  clearInitialCommandQueue(id);
+  if (!commands.length) return;
+  initialCommandQueues.set(id, {
+    commands,
+    index: 0,
+    started: false
+  });
+  const timer = setTimeout(() => startInitialCommandQueue(id), 700);
+  initialCommandTimers.set(id, timer);
 }
 
 function initSplitters(scope) {
@@ -205,4 +210,41 @@ function initSplitters(scope) {
     });
     container.dataset.splitInitialized = 'true';
   });
+}
+
+function clearInitialCommandQueue(id) {
+  const timer = initialCommandTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    initialCommandTimers.delete(id);
+  }
+  initialCommandQueues.delete(id);
+}
+
+function startInitialCommandQueue(id) {
+  const queue = initialCommandQueues.get(id);
+  if (!queue || queue.started) return;
+  queue.started = true;
+  const timer = initialCommandTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    initialCommandTimers.delete(id);
+  }
+  sendNextInitialCommand(id);
+}
+
+function sendNextInitialCommand(id) {
+  const queue = initialCommandQueues.get(id);
+  if (!queue) return;
+  const command = queue.commands[queue.index];
+  if (command) {
+    const payload = `${command}\r\n`;
+    window.maxTerminal.sendInput(id, payload);
+  }
+  queue.index += 1;
+  if (queue.index >= queue.commands.length) {
+    initialCommandQueues.delete(id);
+    return;
+  }
+  setTimeout(() => sendNextInitialCommand(id), 3000);
 }
