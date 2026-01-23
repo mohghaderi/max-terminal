@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const pty = require('node-pty');
 
 const sessions = new Map();
+let isQuitting = false;
 
 function defaultShell() {
   if (process.platform === 'win32') {
@@ -49,14 +50,7 @@ function createWindow() {
   win.loadFile(path.join(__dirname, '..', 'index.html'));
 
   win.on('closed', () => {
-    for (const { proc } of sessions.values()) {
-      try {
-        proc.kill();
-      } catch (err) {
-        // ignore
-      }
-    }
-    sessions.clear();
+    cleanupSessions();
   });
 
   return win;
@@ -84,17 +78,14 @@ app.whenReady().then(() => {
     const id = crypto.randomUUID();
     const proc = spawnPty(opts);
 
-    const onData = (data) => {
-      win.webContents.send('terminal:data', { id, data });
-    };
-    const onExit = (evt) => {
-      win.webContents.send('terminal:exit', { id, exitCode: evt.exitCode });
-    };
+    const onDataDisposable = proc.onData((data) => {
+      safeSend(win, 'terminal:data', { id, data });
+    });
+    const onExitDisposable = proc.onExit((evt) => {
+      safeSend(win, 'terminal:exit', { id, exitCode: evt.exitCode });
+    });
 
-    proc.onData(onData);
-    proc.onExit(onExit);
-
-    sessions.set(id, { proc, opts });
+    sessions.set(id, { proc, opts, onDataDisposable, onExitDisposable });
     return { id };
   });
 
@@ -114,21 +105,17 @@ app.whenReady().then(() => {
     const session = sessions.get(id);
     if (!session) return { ok: false };
 
-    try {
-      session.proc.kill();
-    } catch (err) {
-      // ignore
-    }
+    disposeSession(session);
 
     const proc = spawnPty(session.opts);
-    proc.onData((data) => {
-      win.webContents.send('terminal:data', { id, data });
+    const onDataDisposable = proc.onData((data) => {
+      safeSend(win, 'terminal:data', { id, data });
     });
-    proc.onExit((evt) => {
-      win.webContents.send('terminal:exit', { id, exitCode: evt.exitCode });
+    const onExitDisposable = proc.onExit((evt) => {
+      safeSend(win, 'terminal:exit', { id, exitCode: evt.exitCode });
     });
 
-    sessions.set(id, { proc, opts: session.opts });
+    sessions.set(id, { proc, opts: session.opts, onDataDisposable, onExitDisposable });
     return { ok: true };
   });
 });
@@ -160,3 +147,41 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+app.on('before-quit', () => {
+  isQuitting = true;
+  cleanupSessions();
+});
+
+function safeSend(win, channel, payload) {
+  if (isQuitting) return;
+  if (!win || win.isDestroyed()) return;
+  if (!win.webContents || win.webContents.isDestroyed()) return;
+  win.webContents.send(channel, payload);
+}
+
+function disposeSession(session) {
+  if (!session) return;
+  try {
+    session.onDataDisposable?.dispose?.();
+  } catch (err) {
+    // ignore
+  }
+  try {
+    session.onExitDisposable?.dispose?.();
+  } catch (err) {
+    // ignore
+  }
+  try {
+    session.proc?.kill();
+  } catch (err) {
+    // ignore
+  }
+}
+
+function cleanupSessions() {
+  for (const session of sessions.values()) {
+    disposeSession(session);
+  }
+  sessions.clear();
+}
