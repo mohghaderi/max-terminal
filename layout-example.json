@@ -4,13 +4,7 @@
   "sizes": [0.6, 0.4],
   "children": [
     {
-      "type": "terminal",
-      "title": "Development Terminal",
-      "shell": "C:/Program Files/Git/bin/bash.exe",
-      "args": ["--login", "-i"],
-      "initialCommands": [
-        "ls"
-      ]
+      "contentId": "devTerminal"
     },
     {
       "type": "split",
@@ -18,14 +12,10 @@
       "sizes": [0.5, 0.5],
       "children": [
         {
-          "type": "terminal",
-          "title": "Run Terminal",
-          "shell": "cmd.exe"
+          "contentId": "runTerminal"
         },
         {
-          "type": "web",
-          "title": "https://localhost:9000",
-          "url": "https://localhost:9000"
+          "contentId": "localWeb"
         }
       ]
     }

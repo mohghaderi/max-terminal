@@ -67,8 +67,17 @@ app.whenReady().then(() => {
 
   ipcMain.handle('layout:load', async () => {
     const layoutPath = path.join(app.getAppPath(), 'layout.json');
+    const contentPath = path.join(app.getAppPath(), 'content.json');
     const raw = await fs.readFile(layoutPath, 'utf8');
-    return JSON.parse(raw);
+    const layout = JSON.parse(raw);
+    let content = {};
+    try {
+      const contentRaw = await fs.readFile(contentPath, 'utf8');
+      content = JSON.parse(contentRaw);
+    } catch (err) {
+      content = {};
+    }
+    return mergeLayoutWithContent(layout, content);
   });
 
   ipcMain.handle('terminal:create', (event, opts = {}) => {
@@ -123,6 +132,28 @@ app.whenReady().then(() => {
     return { ok: true };
   });
 });
+
+function mergeLayoutWithContent(node, contentById) {
+  if (!node || typeof node !== 'object') return node;
+
+  if (node.type === 'split') {
+    return {
+      ...node,
+      children: Array.isArray(node.children)
+        ? node.children.map((child) => mergeLayoutWithContent(child, contentById))
+        : []
+    };
+  }
+
+  if (node.contentId && contentById && contentById[node.contentId]) {
+    return {
+      ...node,
+      ...contentById[node.contentId]
+    };
+  }
+
+  return { ...node };
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

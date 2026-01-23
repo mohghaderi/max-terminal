@@ -1,6 +1,6 @@
 # max-terminal
 
-Electron + xterm.js + node-pty terminal layout with split panes defined by `layout.json`.
+Electron + xterm.js + node-pty terminal layout with split panes defined by `layout.json` + `content.json`.
 
 Quick start
 
@@ -9,8 +9,13 @@ Quick start
 
 Layout
 
-The UI is driven by `layout.json`. It supports nested splits and pane types:
+The UI is driven by `layout.json` for structure and `content.json` for pane-specific details. Layout supports nested splits and pane types:
 
 - `split`: `{ "type": "split", "direction": "row" | "column", "sizes": [0.6, 0.4], "children": [...] }`
-- `terminal`: `{ "type": "terminal", "title": "Git Bash", "shell": "cmd.exe", "args": [] }`
+- `terminal`: `{ "contentId": "devTerminal" }`
+- `web`: `{ "contentId": "docsWeb" }`
+
+Content entries live in `content.json` keyed by `contentId`:
+
+- `terminal`: `{ "type": "terminal", "title": "Git Bash", "shell": "cmd.exe", "args": [], "initialCommands": [] }`
 - `web`: `{ "type": "web", "title": "Docs", "url": "https://example.com" }`
