@@ -38,6 +38,60 @@ function buildSplit(node) {
   return container;
 }
 
+function buildTabs(node) {
+  const container = document.createElement('div');
+  container.className = 'tabs';
+
+  const tabBar = document.createElement('div');
+  tabBar.className = 'tab-bar';
+
+  const tabContent = document.createElement('div');
+  tabContent.className = 'tab-content';
+
+  const children = Array.isArray(node.children) ? node.children : [];
+  const panels = [];
+
+  children.forEach((child, index) => {
+    const tabButton = document.createElement('button');
+    tabButton.type = 'button';
+    tabButton.className = 'tab-button';
+    tabButton.textContent = child.tabTitle || child.title || child.contentId || `Tab ${index + 1}`;
+    tabBar.appendChild(tabButton);
+
+    const panel = document.createElement('div');
+    panel.className = 'tab-panel';
+    panel.appendChild(buildNode(child));
+    tabContent.appendChild(panel);
+
+    panels.push({ tabButton, panel });
+  });
+
+  const defaultIndex = Number.isFinite(node.activeIndex) ? node.activeIndex : 0;
+  const maxIndex = Math.max(0, panels.length - 1);
+  const initialIndex = Math.min(Math.max(defaultIndex, 0), maxIndex);
+
+  function setActiveTab(index) {
+    panels.forEach((entry, panelIndex) => {
+      const isActive = panelIndex === index;
+      entry.tabButton.classList.toggle('active', isActive);
+      entry.panel.classList.toggle('active', isActive);
+    });
+    handleResize();
+  }
+
+  panels.forEach((entry, index) => {
+    entry.tabButton.addEventListener('click', () => setActiveTab(index));
+  });
+
+  if (panels.length > 0) {
+    setActiveTab(initialIndex);
+  }
+
+  container.appendChild(tabBar);
+  container.appendChild(tabContent);
+  return container;
+}
+
 function buildPane(node) {
   const paneId = nextPaneId();
   const pane = document.createElement('div');
@@ -83,6 +137,9 @@ function buildPane(node) {
 function buildNode(node) {
   if (node.type === 'split') {
     return buildSplit(node);
+  }
+  if (node.type === 'tabs') {
+    return buildTabs(node);
   }
 
   return buildPane(node);

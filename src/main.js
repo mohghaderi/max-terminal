@@ -132,6 +132,15 @@ function mergeLayoutWithContent(node, contentById) {
     };
   }
 
+  if (node.type === 'tabs') {
+    return {
+      ...node,
+      children: Array.isArray(node.children)
+        ? node.children.map((child) => mergeLayoutWithContent(child, contentById))
+        : []
+    };
+  }
+
   if (node.contentId && contentById && contentById[node.contentId]) {
     return {
       ...node,

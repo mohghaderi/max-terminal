@@ -7,15 +7,16 @@
       "contentId": "devTerminal"
     },
     {
-      "type": "split",
-      "direction": "column",
-      "sizes": [0.5, 0.5],
+      "type": "tabs",
+      "activeIndex": 0,
       "children": [
         {
-          "contentId": "runTerminal"
+          "contentId": "runTerminal",
+          "tabTitle": "Run"
         },
         {
-          "contentId": "localWeb"
+          "contentId": "localWeb",
+          "tabTitle": "Web"
         }
       ]
     }
