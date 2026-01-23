@@ -22,12 +22,13 @@ function buildSplit(node) {
   const container = document.createElement('div');
   container.className = `split ${node.direction === 'column' ? 'column' : 'row'}`;
   const sizes = normalizeSizes(node.children.length, node.sizes);
+  container.dataset.split = 'true';
+  container.dataset.splitDirection = node.direction === 'column' ? 'column' : 'row';
+  container.dataset.splitSizes = JSON.stringify(sizes);
 
   node.children.forEach((child, index) => {
     const slot = document.createElement('div');
     slot.className = 'split-slot';
-    slot.style.flexGrow = sizes[index];
-    slot.style.flexBasis = '0';
     slot.appendChild(buildNode(child));
     container.appendChild(slot);
   });
@@ -155,6 +156,7 @@ window.addEventListener('resize', handleResize);
 (async () => {
   const layout = await window.maxTerminal.loadLayout();
   root.appendChild(buildNode(layout));
+  initSplitters(root);
   handleResize();
 })();
 
@@ -176,4 +178,31 @@ function queueInitialCommands(id, commands) {
       window.maxTerminal.sendInput(id, payload);
     });
   }, 50);
+}
+
+function initSplitters(scope) {
+  if (!window.Split) return;
+  const containers = Array.from(scope.querySelectorAll('.split[data-split="true"]'));
+  containers.forEach((container) => {
+    if (container.dataset.splitInitialized === 'true') return;
+    const direction = container.dataset.splitDirection === 'column' ? 'vertical' : 'horizontal';
+    let sizes = [];
+    try {
+      sizes = JSON.parse(container.dataset.splitSizes || '[]');
+    } catch (err) {
+      sizes = [];
+    }
+    const elements = Array.from(container.querySelectorAll(':scope > .split-slot'));
+    if (elements.length < 2) return;
+
+    window.Split(elements, {
+      direction,
+      sizes: sizes.length === elements.length ? sizes.map((size) => size * 100) : undefined,
+      minSize: 120,
+      gutterSize: 8,
+      snapOffset: 0,
+      onDrag: () => handleResize()
+    });
+    container.dataset.splitInitialized = 'true';
+  });
 }
