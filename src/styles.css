@@ -1,0 +1,143 @@
+:root {
+  --bg: #0e0f13;
+  --panel: #151823;
+  --panel-alt: #1c2030;
+  --border: #2a2f40;
+  --text: #e6e6e6;
+  --muted: #a7a9b5;
+  --accent: #6bd4ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top left, #1b2238, #0c0f18 55%, #0a0c12 100%);
+  color: var(--text);
+  font-family: "Cascadia Mono", "Fira Code", "Source Code Pro", monospace;
+}
+
+.app-root {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  gap: 8px;
+}
+
+.split {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+}
+
+.split.row {
+  flex-direction: row;
+}
+
+.split.column {
+  flex-direction: column;
+}
+
+.split-slot {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--panel);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 8px;
+  background: linear-gradient(90deg, var(--panel-alt), #141827);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.titlebar .title {
+  color: var(--muted);
+}
+
+.titlebar .refresh {
+  border: 1px solid rgba(107, 212, 255, 0.4);
+  background: transparent;
+  color: var(--accent);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.titlebar .refresh:hover {
+  background: rgba(107, 212, 255, 0.1);
+  border-color: rgba(107, 212, 255, 0.8);
+}
+
+.content {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.content .xterm {
+  padding: 6px;
+}
+
+.content .xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  opacity: 0;
+}
+
+.content .xterm-viewport::-webkit-scrollbar-track {
+  background: rgba(12, 15, 24, 0.0);
+  border-radius: 999px;
+}
+
+.content .xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(107, 212, 255, 0.0);
+  border-radius: 999px;
+  border: 1px solid rgba(12, 15, 24, 0.0);
+}
+
+.content .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 212, 255, 0.75);
+}
+
+.content .xterm-viewport:hover::-webkit-scrollbar-track {
+  background: rgba(12, 15, 24, 0.5);
+}
+
+.content .xterm-viewport:hover::-webkit-scrollbar-thumb {
+  background: rgba(107, 212, 255, 0.35);
+  border-color: rgba(12, 15, 24, 0.6);
+}
+
+.webview {
+  width: 100%;
+  height: 100%;
+  border: none;
+}

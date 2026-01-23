@@ -1,0 +1,33 @@
+{
+  "type": "split",
+  "direction": "row",
+  "sizes": [0.6, 0.4],
+  "children": [
+    {
+      "type": "terminal",
+      "title": "Development Terminal",
+      "shell": "C:/Program Files/Git/bin/bash.exe",
+      "args": ["--login", "-i"],
+      "initialCommands": [
+        "ls"
+      ]
+    },
+    {
+      "type": "split",
+      "direction": "column",
+      "sizes": [0.5, 0.5],
+      "children": [
+        {
+          "type": "terminal",
+          "title": "Run Terminal",
+          "shell": "cmd.exe"
+        },
+        {
+          "type": "web",
+          "title": "https://localhost:9000",
+          "url": "https://localhost:9000"
+        }
+      ]
+    }
+  ]
+}

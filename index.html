@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src *;">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Max Terminal</title>
+    <link rel="stylesheet" href="./node_modules/xterm/css/xterm.css" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div id="root" class="app-root"></div>
+    <script src="./node_modules/xterm/lib/xterm.js"></script>
+    <script src="./node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+    <script src="./src/renderer.js" defer></script>
+  </body>
+</html>
