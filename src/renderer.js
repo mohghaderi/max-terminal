@@ -227,9 +227,23 @@ function createWebviewStatus(container, onReload) {
   status.className = 'webview-status';
   status.hidden = true;
 
+  const header = document.createElement('div');
+  header.className = 'webview-status-header';
+
   const title = document.createElement('div');
   title.className = 'webview-status-title';
   title.textContent = 'Web view error';
+
+  const close = document.createElement('button');
+  close.className = 'webview-status-close';
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close web view error');
+  close.textContent = '×';
+  close.addEventListener('click', () => {
+    status.hidden = true;
+    details.textContent = '';
+    status.remove();
+  });
 
   const details = document.createElement('div');
   details.className = 'webview-status-details';
@@ -245,22 +259,32 @@ function createWebviewStatus(container, onReload) {
     onReload();
   });
 
+  header.appendChild(title);
+  header.appendChild(close);
   actions.appendChild(retry);
-  status.appendChild(title);
+  status.appendChild(header);
   status.appendChild(details);
   status.appendChild(actions);
   container.appendChild(status);
 
-  return { status, details };
+  return { status, details, container };
+}
+
+function ensureWebviewStatusAttached(status) {
+  if (!status.status.isConnected) {
+    status.container.appendChild(status.status);
+  }
 }
 
 function clearWebviewStatus(status) {
   status.status.hidden = true;
   status.details.textContent = '';
+  status.status.remove();
 }
 
 function attachWebviewHandlers({ webview, status, node }) {
   const showStatus = (message, detail) => {
+    ensureWebviewStatusAttached(status);
     status.details.textContent = detail ? `${message} - ${detail}` : message;
     status.status.hidden = false;
   };

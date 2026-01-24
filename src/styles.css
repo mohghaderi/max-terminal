@@ -236,11 +236,36 @@ body {
   z-index: 2;
 }
 
+.webview-status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .webview-status-title {
   font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.webview-status-close {
+  border: 1px solid rgba(107, 212, 255, 0.25);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.webview-status-close:hover {
+  color: var(--text);
+  border-color: rgba(107, 212, 255, 0.7);
+  background: rgba(107, 212, 255, 0.1);
 }
 
 .webview-status-details {
