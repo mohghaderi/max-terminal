@@ -124,9 +124,10 @@ function buildPane(node) {
 
   if (node.type === 'web') {
     const webview = createWebview(node);
-    const status = createWebviewStatus(content, () => webview.reload());
+    const status = createWebviewStatus(content, () => loadWebviewUrl(webview, webview.dataset.initialUrl));
     attachWebviewHandlers({ webview, status, node });
     content.appendChild(webview);
+    loadWebviewUrl(webview, webview.dataset.initialUrl);
     refresh.addEventListener('click', async () => {
       clearWebviewStatus(status);
       if (node.contentId && window.maxTerminal.getContent) {
@@ -134,16 +135,16 @@ function buildPane(node) {
           const fresh = await window.maxTerminal.getContent(node.contentId);
           const nextUrl = fresh?.url || node.url;
           if (nextUrl) {
-            webview.src = nextUrl;
+            loadWebviewUrl(webview, nextUrl);
           } else {
-            webview.reload();
+            loadWebviewUrl(webview, webview.dataset.initialUrl);
           }
           return;
         } catch (err) {
           // fall through to reload
         }
       }
-      webview.reload();
+      loadWebviewUrl(webview, webview.dataset.initialUrl);
     });
   }
 
@@ -216,10 +217,29 @@ function handleResize() {
 
 function createWebview(node) {
   const webview = document.createElement('webview');
-  webview.src = node.url || 'https://example.com';
   webview.className = 'webview';
   webview.setAttribute('allowpopups', '');
+  webview.dataset.initialUrl = node.url || 'https://example.com';
   return webview;
+}
+
+function loadWebviewUrl(webview, url) {
+  if (!webview || !url) return;
+  webview.dataset.lastRequestedUrl = url;
+  if (webview.dataset.domReady !== 'true' || !webview.isConnected) {
+    webview.src = url;
+    return;
+  }
+  const loadPromise = webview.loadURL(url);
+  if (loadPromise && typeof loadPromise.catch === 'function') {
+    loadPromise.catch((err) => {
+      const code = err?.code ?? err?.errno;
+      if (code === 'ERR_ABORTED' || code === -3) {
+        return;
+      }
+      console.error('Webview load failed', err);
+    });
+  }
 }
 
 function createWebviewStatus(container, onReload) {
@@ -297,7 +317,10 @@ function attachWebviewHandlers({ webview, status, node }) {
   webview.addEventListener('did-start-loading', () => clearWebviewStatus(status));
   webview.addEventListener('did-finish-load', () => clearWebviewStatus(status));
   webview.addEventListener('did-stop-loading', () => clearWebviewStatus(status));
-  webview.addEventListener('dom-ready', () => clearWebviewStatus(status));
+  webview.addEventListener('dom-ready', () => {
+    webview.dataset.domReady = 'true';
+    clearWebviewStatus(status);
+  });
   webview.addEventListener('did-navigate', () => clearWebviewStatus(status));
   webview.addEventListener('did-navigate-in-page', () => clearWebviewStatus(status));
   webview.addEventListener('did-start-navigation', () => clearWebviewStatus(status));
@@ -344,10 +367,26 @@ window.maxTerminal.onTerminalExit(({ id, exitCode }) => {
 window.addEventListener('resize', handleResize);
 
 (async () => {
-  const layout = await window.maxTerminal.loadLayout();
-  root.appendChild(buildNode(layout));
-  initSplitters(root);
-  handleResize();
+  try {
+    const layout = await window.maxTerminal.loadLayout();
+    console.log('[layout] received layout', layout);
+    if (!layout || (layout.type === 'tabs' && Array.isArray(layout.children) && layout.children.length === 0)) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No tabs found. Add JSON files under conf/tabs (files starting with "_" are ignored).';
+      root.appendChild(empty);
+      return;
+    }
+    root.appendChild(buildNode(layout));
+    initSplitters(root);
+    handleResize();
+  } catch (err) {
+    console.error('[layout] failed to build layout', err);
+    const errorPane = document.createElement('div');
+    errorPane.className = 'empty-state';
+    errorPane.textContent = `Failed to load layout: ${err?.message || err}`;
+    root.appendChild(errorPane);
+  }
 })();
 
 function normalizeInitialCommands(value) {

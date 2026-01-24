@@ -25,5 +25,4 @@ Thumbs.db
 .vscode/
 
 
-layout.json
-content.json
+conf/tabs/*.json

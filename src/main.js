@@ -8,8 +8,6 @@ const pty = require('node-pty');
 const sessions = new Map();
 let isQuitting = false;
 const appIconPath = path.join(__dirname, '..', 'max_terminal_icon.png');
-const defaultTerminalShell = 'C:/Program Files/Git/bin/bash.exe';
-const defaultTerminalArgs = ['--login', '-i'];
 
 // Prefer GPU acceleration for WebGL-heavy webviews when available.
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
@@ -71,15 +69,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('layout:load', async () => {
     const content = await loadContent();
-    const projects = await loadProjects();
-    if (projects && Array.isArray(projects.projects) && projects.projects.length > 0) {
-      const { layout, content: projectContent } = buildFromProjects(projects);
-      return mergeLayoutWithContent(layout, { ...projectContent, ...content });
-    }
-
-    const layoutPath = path.join(app.getAppPath(), 'layout.json');
-    const raw = await fs.readFile(layoutPath, 'utf8');
-    const layout = JSON.parse(raw);
+    const layout = await loadLayout();
     return mergeLayoutWithContent(layout, content);
   });
 
@@ -136,105 +126,149 @@ app.whenReady().then(() => {
 });
 
 async function loadContent() {
-  const contentPath = path.join(app.getAppPath(), 'content.json');
-  try {
-    const contentRaw = await fs.readFile(contentPath, 'utf8');
-    return JSON.parse(contentRaw);
-  } catch (err) {
-    return {};
+  const candidates = resolveConfigPaths('content.json');
+
+  let contentById = {};
+  for (const contentPath of candidates) {
+    try {
+      const contentRaw = await fs.readFile(contentPath, 'utf8');
+      const parsed = JSON.parse(contentRaw);
+      contentById = { ...contentById, ...extractContentEntries(parsed) };
+    } catch (err) {
+      // try next location
+    }
   }
+
+  const tabFiles = await loadTabFiles();
+  console.log('[layout] tab files for content:', tabFiles);
+  if (tabFiles.length > 0) {
+    for (const tabFile of tabFiles) {
+      try {
+        const tabRaw = await fs.readFile(tabFile, 'utf8');
+        const tabNode = JSON.parse(tabRaw);
+        const tabContent = extractContentEntries(tabNode?.content);
+        contentById = { ...contentById, ...tabContent };
+      } catch (err) {
+        // ignore missing/invalid tab content
+      }
+    }
+  }
+
+  return contentById;
 }
 
-async function loadProjects() {
-  const projectsPath = path.join(app.getAppPath(), 'projects.json');
-  try {
-    const projectsRaw = await fs.readFile(projectsPath, 'utf8');
-    return JSON.parse(projectsRaw);
-  } catch (err) {
-    return null;
+async function loadLayout() {
+  const tabFiles = await loadTabFiles();
+  console.log('[layout] loading tabs from:', tabFiles);
+  const tabChildren = [];
+
+  for (const tabFile of tabFiles) {
+    try {
+      const tabRaw = await fs.readFile(tabFile, 'utf8');
+      const tabNode = JSON.parse(tabRaw);
+      const fallbackTitle = path.parse(tabFile).name;
+      const normalized = normalizeTabNode(tabNode, fallbackTitle);
+      if (normalized) {
+        tabChildren.push(normalized);
+      }
+    } catch (err) {
+      console.warn(`Failed to load tab file: ${tabFile}`);
+    }
   }
-}
 
-function buildFromProjects(projectsConfig = {}) {
-  const globals = projectsConfig.globals || {};
-  const sshHost = globals.sshHost || '';
-  const sshKey = globals.sshKey || '';
-  const shell = globals.shell || defaultTerminalShell;
-  const args = Array.isArray(globals.shellArgs) ? globals.shellArgs : defaultTerminalArgs;
-
-  const layout = {
+  return {
     type: 'tabs',
     activeIndex: 0,
-    children: projectsConfig.projects.map((project) => ({
-      type: 'split',
-      tabTitle: project.title || project.id,
-      direction: 'row',
-      sizes: [0.6, 0.4],
-      children: [
-        { contentId: `${project.id}Website` },
-        {
-          type: 'tabs',
-          activeIndex: 0,
-          children: [
-            { contentId: `${project.id}WebCodex`, tabTitle: 'Codex' },
-            { contentId: `${project.id}WebRun`, tabTitle: 'Run Dev' },
-            { contentId: `${project.id}Github`, tabTitle: 'Github' },
-            { contentId: `${project.id}Bash`, tabTitle: 'Bash' }
-          ]
-        }
-      ]
-    }))
+    children: tabChildren,
+    noTabs: tabChildren.length === 0
   };
+}
 
-  const content = {};
-  for (const project of projectsConfig.projects) {
-    const baseCommands = [];
-    if (sshHost) {
-      const keyArg = sshKey ? ` -i ${sshKey}` : '';
-      baseCommands.push(`ssh${keyArg} ${sshHost}`);
+async function loadTabFiles() {
+  const tabFolders = resolveTabFolders();
+  console.log('[layout] scanning tab folders:', tabFolders);
+  const collected = [];
+
+  for (const folder of tabFolders) {
+    try {
+      const entries = await fs.readdir(folder, { withFileTypes: true });
+      const tabFiles = entries
+        .filter((entry) => entry.isFile())
+        .map((entry) => entry.name)
+        .filter((name) => name.endsWith('.json'))
+        .filter((name) => !name.startsWith('_'))
+        .sort((a, b) => a.localeCompare(b))
+        .map((name) => path.join(folder, name));
+
+      collected.push(...tabFiles);
+    } catch (err) {
+      // try next location
     }
-    if (project.repo) {
-      baseCommands.push(`cd ${project.repo}`);
+  }
+
+  const unique = Array.from(new Set(collected)).sort((a, b) => a.localeCompare(b));
+  if (unique.length === 0) {
+    console.warn('No tab files found. Checked:', tabFolders);
+  }
+  return unique;
+}
+
+function resolveConfigPaths(...suffixes) {
+  const appPath = app.getAppPath();
+  const appParent = path.dirname(appPath);
+  const cwd = process.cwd();
+  const bases = [appPath, appParent, cwd];
+
+  const results = [];
+  for (const base of bases) {
+    for (const suffix of suffixes) {
+      results.push(path.join(base, suffix));
     }
+  }
 
-    content[`${project.id}WebCodex`] = {
-      type: 'terminal',
-      title: `${project.title || project.id} - Codex`,
-      shell,
-      args,
-      initialCommands: [...baseCommands, 'codex']
-    };
+  return Array.from(new Set(results));
+}
 
-    content[`${project.id}WebRun`] = {
-      type: 'terminal',
-      title: `${project.title || project.id} - npm run dev`,
-      shell,
-      args,
-      initialCommands: [...baseCommands, 'npm run dev']
-    };
+function resolveTabFolders() {
+  const appPath = app.getAppPath();
+  const appParent = path.dirname(appPath);
+  const cwd = process.cwd();
+  const codeRoot = path.join(__dirname, '..');
 
-    content[`${project.id}Bash`] = {
-      type: 'terminal',
-      title: `${project.title || project.id} - Bash`,
-      shell,
-      args,
-      initialCommands: [...baseCommands]
-    };
+  const bases = [appPath, appParent, cwd, codeRoot];
+  const suffixes = [path.join('conf', 'tabs'), 'tabs'];
 
-    content[`${project.id}Website`] = {
-      type: 'web',
-      title: `${project.title || project.id} Website`,
-      url: project.siteUrl || ''
-    };
+  const results = [];
+  for (const base of bases) {
+    for (const suffix of suffixes) {
+      results.push(path.join(base, suffix));
+    }
+  }
 
-    content[`${project.id}Github`] = {
-      type: 'web',
-      title: `${project.title || project.id} Github`,
-      url: project.githubUrl || ''
+  return Array.from(new Set(results));
+}
+function extractContentEntries(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  if (raw.content && typeof raw.content === 'object' && !Array.isArray(raw.content)) {
+    return { ...raw.content };
+  }
+  return { ...raw };
+}
+
+function normalizeTabNode(tabNode, fallbackTitle) {
+  if (!tabNode || typeof tabNode !== 'object') return null;
+
+  if (tabNode.layout && typeof tabNode.layout === 'object') {
+    return {
+      ...tabNode.layout,
+      tabTitle: tabNode.tabTitle || fallbackTitle
     };
   }
 
-  return { layout, content };
+  return {
+    ...tabNode,
+    tabTitle: tabNode.tabTitle || fallbackTitle
+  };
 }
 
 function mergeLayoutWithContent(node, contentById) {
