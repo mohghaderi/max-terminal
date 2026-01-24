@@ -19,3 +19,29 @@ Content entries live in `content.json` keyed by `contentId`:
 
 - `terminal`: `{ "type": "terminal", "title": "Git Bash", "shell": "cmd.exe", "args": [], "initialCommands": [] }`
 - `web`: `{ "type": "web", "title": "Docs", "url": "https://example.com" }`
+
+Projects (recommended)
+
+If `projects.json` exists, the app will build the layout and content automatically from it (and merge with `content.json` as overrides). This avoids repeating the same blocks for each project.
+
+Example `projects.json`:
+
+```
+{
+  "globals": {
+    "sshHost": "ubuntu@35.161.224.53",
+    "sshKey": "F:/Companies/Xelead/IT/AmazonAWS/sunstarhost/ubuntu20webserver.pem",
+    "shell": "C:/Program Files/Git/bin/bash.exe",
+    "shellArgs": ["--login", "-i"]
+  },
+  "projects": [
+    {
+      "id": "mohghaderi",
+      "title": "Mohghaderi.com",
+      "repo": "github/mohghaderi/my-3d-website",
+      "siteUrl": "http://35.161.224.53:9000/",
+      "githubUrl": "https://github.com/mohghaderi/my-3d-website/pulls/"
+    }
+  ]
+}
+```

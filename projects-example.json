@@ -1,0 +1,24 @@
+﻿{
+  "globals": {
+    "sshHost": "ubuntu@example.com",
+    "sshKey": "C:/Keys/example.pem",
+    "shell": "C:/Program Files/Git/bin/bash.exe",
+    "shellArgs": ["--login", "-i"]
+  },
+  "projects": [
+    {
+      "id": "atlas",
+      "title": "Atlas App",
+      "repo": "github/example/atlas-app",
+      "siteUrl": "http://example.com:3000/",
+      "githubUrl": "https://github.com/example/atlas-app/pulls/"
+    },
+    {
+      "id": "kestrel",
+      "title": "Kestrel Studio",
+      "repo": "github/example/kestrel-studio",
+      "siteUrl": "http://example.com:4000/",
+      "githubUrl": "https://github.com/example/kestrel-studio/pulls/"
+    }
+  ]
+}
