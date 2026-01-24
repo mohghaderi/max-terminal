@@ -123,12 +123,12 @@ function buildPane(node) {
   }
 
   if (node.type === 'web') {
-    const webview = document.createElement('webview');
-    webview.src = node.url || 'https://example.com';
-    webview.className = 'webview';
-    webview.setAttribute('allowpopups', '');
+    const webview = createWebview(node);
+    const status = createWebviewStatus(content, () => webview.reload());
+    attachWebviewHandlers({ webview, status, node });
     content.appendChild(webview);
     refresh.addEventListener('click', async () => {
+      clearWebviewStatus(status);
       if (node.contentId && window.maxTerminal.getContent) {
         try {
           const fresh = await window.maxTerminal.getContent(node.contentId);
@@ -212,6 +212,95 @@ function handleResize() {
     session.fitAddon.fit();
     window.maxTerminal.resizeTerminal(id, session.term.cols, session.term.rows);
   }
+}
+
+function createWebview(node) {
+  const webview = document.createElement('webview');
+  webview.src = node.url || 'https://example.com';
+  webview.className = 'webview';
+  webview.setAttribute('allowpopups', '');
+  return webview;
+}
+
+function createWebviewStatus(container, onReload) {
+  const status = document.createElement('div');
+  status.className = 'webview-status';
+  status.hidden = true;
+
+  const title = document.createElement('div');
+  title.className = 'webview-status-title';
+  title.textContent = 'Web view error';
+
+  const details = document.createElement('div');
+  details.className = 'webview-status-details';
+
+  const actions = document.createElement('div');
+  actions.className = 'webview-status-actions';
+
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.textContent = 'Reload';
+  retry.addEventListener('click', () => {
+    status.hidden = true;
+    onReload();
+  });
+
+  actions.appendChild(retry);
+  status.appendChild(title);
+  status.appendChild(details);
+  status.appendChild(actions);
+  container.appendChild(status);
+
+  return { status, details };
+}
+
+function clearWebviewStatus(status) {
+  status.status.hidden = true;
+  status.details.textContent = '';
+}
+
+function attachWebviewHandlers({ webview, status, node }) {
+  const showStatus = (message, detail) => {
+    status.details.textContent = detail ? `${message} - ${detail}` : message;
+    status.status.hidden = false;
+  };
+  const isAbortError = (event) => {
+    const code = Number(event?.errorCode);
+    const description = String(event?.errorDescription || '').toUpperCase();
+    return code === -3 || description === 'ERR_ABORTED';
+  };
+
+  webview.addEventListener('did-start-loading', () => clearWebviewStatus(status));
+  webview.addEventListener('did-finish-load', () => clearWebviewStatus(status));
+  webview.addEventListener('did-stop-loading', () => clearWebviewStatus(status));
+  webview.addEventListener('dom-ready', () => clearWebviewStatus(status));
+  webview.addEventListener('did-navigate', () => clearWebviewStatus(status));
+  webview.addEventListener('did-navigate-in-page', () => clearWebviewStatus(status));
+  webview.addEventListener('did-start-navigation', () => clearWebviewStatus(status));
+  webview.addEventListener('did-commit-navigation', () => clearWebviewStatus(status));
+  webview.addEventListener('will-navigate', () => clearWebviewStatus(status));
+
+  webview.addEventListener('did-fail-load', (event) => {
+    if (!event.isMainFrame) return;
+    if (isAbortError(event)) {
+      clearWebviewStatus(status);
+      return;
+    }
+    const detail = `${event.errorDescription || 'Load failed'} (${event.errorCode})`;
+    showStatus('Failed to load web content', detail);
+  });
+
+  webview.addEventListener('render-process-gone', (event) => {
+    const detail = event?.details?.reason
+      ? `Render process gone: ${event.details.reason}`
+      : 'Render process gone';
+    showStatus('Web view crashed', detail);
+  });
+
+  webview.addEventListener('console-message', (event) => {
+    const label = node?.title ? `webview:${node.title}` : 'webview';
+    console.log(`[${label}]`, event.message);
+  });
 }
 
 window.maxTerminal.onTerminalData(({ id, data }) => {

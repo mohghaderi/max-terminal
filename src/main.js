@@ -8,6 +8,11 @@ const pty = require('node-pty');
 const sessions = new Map();
 let isQuitting = false;
 
+// Prefer GPU acceleration for WebGL-heavy webviews when available.
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+
 function defaultShell() {
   if (process.platform === 'win32') {
     return process.env.COMSPEC || 'cmd.exe';
