@@ -139,21 +139,6 @@ async function loadContent() {
     }
   }
 
-  const tabFiles = await loadTabFiles();
-  console.log('[layout] tab files for content:', tabFiles);
-  if (tabFiles.length > 0) {
-    for (const tabFile of tabFiles) {
-      try {
-        const tabRaw = await fs.readFile(tabFile, 'utf8');
-        const tabNode = JSON.parse(tabRaw);
-        const tabContent = extractContentEntries(tabNode?.content);
-        contentById = { ...contentById, ...tabContent };
-      } catch (err) {
-        // ignore missing/invalid tab content
-      }
-    }
-  }
-
   return contentById;
 }
 
@@ -169,6 +154,10 @@ async function loadLayout() {
       const fallbackTitle = path.parse(tabFile).name;
       const normalized = normalizeTabNode(tabNode, fallbackTitle);
       if (normalized) {
+        const tabContent = extractContentEntries(tabNode?.content);
+        if (tabContent && Object.keys(tabContent).length > 0) {
+          normalized.__tabContent = tabContent;
+        }
         tabChildren.push(normalized);
       }
     } catch (err) {
@@ -271,35 +260,46 @@ function normalizeTabNode(tabNode, fallbackTitle) {
   };
 }
 
-function mergeLayoutWithContent(node, contentById) {
+function mergeLayoutWithContent(node, contentById, context) {
   if (!node || typeof node !== 'object') return node;
 
-  if (node.type === 'split') {
+  const baseContent = contentById || {};
+  const activeContent = context?.activeContent || baseContent;
+  const overrides = node.__tabContent;
+  const hasOverrides = overrides && typeof overrides === 'object' && Object.keys(overrides).length > 0;
+  const nextActiveContent = hasOverrides ? { ...baseContent, ...overrides } : activeContent;
+
+  const sanitized = { ...node };
+  delete sanitized.__tabContent;
+
+  const childContext = { activeContent: nextActiveContent };
+
+  if (sanitized.type === 'split') {
     return {
-      ...node,
-      children: Array.isArray(node.children)
-        ? node.children.map((child) => mergeLayoutWithContent(child, contentById))
+      ...sanitized,
+      children: Array.isArray(sanitized.children)
+        ? sanitized.children.map((child) => mergeLayoutWithContent(child, contentById, childContext))
         : []
     };
   }
 
-  if (node.type === 'tabs') {
+  if (sanitized.type === 'tabs') {
     return {
-      ...node,
-      children: Array.isArray(node.children)
-        ? node.children.map((child) => mergeLayoutWithContent(child, contentById))
+      ...sanitized,
+      children: Array.isArray(sanitized.children)
+        ? sanitized.children.map((child) => mergeLayoutWithContent(child, contentById, childContext))
         : []
     };
   }
 
-  if (node.contentId && contentById && contentById[node.contentId]) {
+  if (sanitized.contentId && nextActiveContent[sanitized.contentId]) {
     return {
-      ...node,
-      ...contentById[node.contentId]
+      ...sanitized,
+      ...nextActiveContent[sanitized.contentId]
     };
   }
 
-  return { ...node };
+  return sanitized;
 }
 
 app.on('window-all-closed', () => {
