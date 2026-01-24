@@ -7,6 +7,7 @@ const pty = require('node-pty');
 
 const sessions = new Map();
 let isQuitting = false;
+const appIconPath = path.join(__dirname, '..', 'max_terminal_icon.png');
 
 // Prefer GPU acceleration for WebGL-heavy webviews when available.
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
@@ -40,6 +41,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: appIconPath,
     backgroundColor: '#0e0f13',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
