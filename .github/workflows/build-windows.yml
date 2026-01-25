@@ -17,7 +17,7 @@ on:
       artifact_glob:
         description: 'Glob for build outputs to upload to the release'
         required: false
-        default: 'dist/**/*'
+      default: 'dist/max_terminal_setup_*.exe dist/max_terminal_*.zip'
 
 jobs:
   build:

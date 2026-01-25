@@ -13,8 +13,14 @@
   ],
   "win": {
     "target": [
-      "nsis",
-      "zip"
+      {
+        "target": "nsis",
+        "artifactName": "max_terminal_setup_${version}.exe"
+      },
+      {
+        "target": "zip",
+        "artifactName": "max_terminal_${version}.zip"
+      }
     ]
   },
   "mac": {
