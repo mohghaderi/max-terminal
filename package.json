@@ -5,11 +5,13 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "postinstall": "electron-rebuild -f -w node-pty"
+    "postinstall": "electron-rebuild -f -w node-pty",
+    "dist": "electron-builder --config electron-builder.config.json --publish=never"
   },
   "devDependencies": {
     "electron": "^40.0.0",
-    "electron-rebuild": "^3.2.9"
+    "electron-rebuild": "^2.0.3",
+    "electron-builder": "^26.4.0"
   },
   "dependencies": {
     "node-pty": "^1.0.0",

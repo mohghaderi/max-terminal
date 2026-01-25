@@ -1,0 +1,32 @@
+{
+  "appId": "com.max-terminal.app",
+  "productName": "max-terminal",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "src/**/*",
+    "assets/**/*",
+    "conf/**/*",
+    "index.html",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      "nsis",
+      "zip"
+    ]
+  },
+  "mac": {
+    "target": [
+      "dmg",
+      "zip"
+    ]
+  },
+  "linux": {
+    "target": [
+      "AppImage",
+      "deb"
+    ]
+  }
+}
