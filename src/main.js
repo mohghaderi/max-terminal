@@ -13,7 +13,7 @@ const {
 const crypto = require('crypto');
 
 let isQuitting = false;
-const appIconPath = path.join(__dirname, '..', 'max_terminal_icon.png');
+const appIconPath = path.join(__dirname, '..', 'assets', 'icons', 'max_terminal_icon.png');
 
 // Prefer GPU acceleration for WebGL-heavy webviews when available.
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
