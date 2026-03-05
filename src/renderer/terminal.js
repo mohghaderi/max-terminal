@@ -1,6 +1,7 @@
 const terminalSessions = new Map();
 const initialCommandQueues = new Map();
 const initialCommandTimers = new Map();
+const deferredSetupWatchers = new Set();
 
 const DEFAULT_INIT_CMD_WAIT_TIME = 700;
 const DEFAULT_SEND_CMD_WAIT_TIME = 3000;
@@ -114,6 +115,92 @@ export async function setupTerminal(container, refreshButton, node, paneId) {
       queueInitialCommands(id, refreshedCommands);
     }
   });
+}
+
+export function setupTerminalWhenVisible(container, refreshButton, node, paneId) {
+  let observer = null;
+  let setupPromise = null;
+  let cleanupVisibilityFallback = null;
+
+  function isInActiveTabPath() {
+    let current = container;
+    while (current) {
+      if (current.classList && current.classList.contains('tab-panel') && !current.classList.contains('active')) {
+        return false;
+      }
+      current = current.parentElement;
+    }
+    return true;
+  }
+
+  function isVisibleInViewport() {
+    if (!container.isConnected) return false;
+    if (!isInActiveTabPath()) return false;
+
+    const computedStyle = window.getComputedStyle(container);
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      return false;
+    }
+
+    const rect = container.getBoundingClientRect();
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < window.innerHeight &&
+      rect.left < window.innerWidth
+    );
+  }
+
+  async function ensureSetup() {
+    if (setupPromise) return setupPromise;
+    setupPromise = setupTerminal(container, refreshButton, node, paneId);
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+    if (cleanupVisibilityFallback) {
+      cleanupVisibilityFallback();
+      cleanupVisibilityFallback = null;
+    }
+    deferredSetupWatchers.delete(onVisibilityChange);
+    return setupPromise;
+  }
+
+  function onVisibilityChange() {
+    if (isVisibleInViewport()) {
+      ensureSetup();
+    }
+  }
+
+  deferredSetupWatchers.add(onVisibilityChange);
+
+  if (typeof window.IntersectionObserver === 'function') {
+    observer = new window.IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        ensureSetup();
+      }
+    }, { threshold: 0.01 });
+    observer.observe(container);
+  }
+
+  const onFallbackVisibilityEvent = () => onVisibilityChange();
+  window.addEventListener('resize', onFallbackVisibilityEvent);
+  window.addEventListener('scroll', onFallbackVisibilityEvent, true);
+  cleanupVisibilityFallback = () => {
+    window.removeEventListener('resize', onFallbackVisibilityEvent);
+    window.removeEventListener('scroll', onFallbackVisibilityEvent, true);
+    deferredSetupWatchers.delete(onVisibilityChange);
+  };
+
+  requestAnimationFrame(onVisibilityChange);
+}
+
+export function checkDeferredTerminalSetup() {
+  for (const watcher of deferredSetupWatchers) {
+    watcher();
+  }
 }
 
 export function handleResize() {
