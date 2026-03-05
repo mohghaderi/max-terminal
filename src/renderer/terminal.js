@@ -123,6 +123,35 @@ export function handleResize() {
   }
 }
 
+function compareNodesInDocumentOrder(a, b) {
+  if (a === b) return 0;
+  const position = a.compareDocumentPosition(b);
+  if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+  if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+  return 0;
+}
+
+export function focusFirstTerminalInElement(rootElement) {
+  if (!rootElement) return false;
+
+  const matches = [];
+  for (const session of terminalSessions.values()) {
+    if (!session?.term?.element) continue;
+    if (rootElement.contains(session.term.element)) {
+      matches.push(session.term);
+    }
+  }
+
+  if (!matches.length) return false;
+  matches.sort((a, b) => compareNodesInDocumentOrder(a.element, b.element));
+
+  const first = matches[0];
+  if (first && typeof first.focus === 'function') {
+    first.focus();
+  }
+  return true;
+}
+
 window.maxTerminal.onTerminalData(({ id, data }) => {
   const session = terminalSessions.get(id);
   if (!session) return;
