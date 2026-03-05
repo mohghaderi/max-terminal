@@ -90,6 +90,12 @@ export async function setupTerminal(container, refreshButton, node, paneId) {
 
   terminalSessions.set(id, { term, fitAddon, paneId });
 
+  const onContextMenu = (event) => {
+    event.preventDefault();
+    window.maxTerminal.showTerminalContextMenu(id, term.hasSelection());
+  };
+  container.addEventListener('contextmenu', onContextMenu);
+
   const initialCommands = normalizeInitialCommands(node.initialCommands);
   if (initialCommands.length > 0) {
     queueInitialCommands(id, initialCommands);
@@ -129,4 +135,23 @@ window.maxTerminal.onTerminalExit(({ id, exitCode }) => {
   if (!session) return;
   session.term.write(`\r\n[process exited ${exitCode}]\r\n`);
   clearInitialCommandQueue(id);
+});
+
+window.maxTerminal.onTerminalContextMenuAction(async ({ id, action }) => {
+  const session = terminalSessions.get(id);
+  if (!session) return;
+
+  if (action === 'copy') {
+    const selectedText = session.term.getSelection();
+    if (!selectedText) return;
+    await window.maxTerminal.writeClipboardText(selectedText);
+    session.term.clearSelection();
+    return;
+  }
+
+  if (action === 'paste') {
+    const text = await window.maxTerminal.readClipboardText();
+    if (!text) return;
+    window.maxTerminal.sendInput(id, text);
+  }
 });

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, clipboard } = require('electron');
 const path = require('path');
 const {
   loadContent,
@@ -104,6 +104,33 @@ app.whenReady().then(() => {
     });
 
     sessions.set(id, { proc, opts: session.opts, onDataDisposable, onExitDisposable });
+    return { ok: true };
+  });
+
+  ipcMain.handle('terminal:show-context-menu', (event, { id, hasSelection } = {}) => {
+    if (!id) return { ok: false };
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return { ok: false };
+
+    const template = [];
+    if (hasSelection) {
+      template.push({
+        label: 'Copy',
+        click: () => safeSend(win, 'terminal:context-menu-action', { id, action: 'copy' })
+      });
+    }
+    template.push({
+      label: 'Paste',
+      click: () => safeSend(win, 'terminal:context-menu-action', { id, action: 'paste' })
+    });
+
+    Menu.buildFromTemplate(template).popup({ window: win });
+    return { ok: true };
+  });
+
+  ipcMain.handle('clipboard:read-text', () => clipboard.readText());
+  ipcMain.handle('clipboard:write-text', (event, { text } = {}) => {
+    clipboard.writeText(text || '');
     return { ok: true };
   });
 });
