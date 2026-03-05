@@ -1,4 +1,4 @@
-import { setupTerminal, handleResize, focusFirstTerminalInElement } from './terminal.js';
+import { setupTerminalWhenVisible, checkDeferredTerminalSetup, handleResize, focusFirstTerminalInElement } from './terminal.js';
 import {
   createWebview,
   loadWebviewUrl,
@@ -81,6 +81,7 @@ function buildTabs(node) {
       entry.tabButton.classList.toggle('active', isActive);
       entry.panel.classList.toggle('active', isActive);
     });
+    checkDeferredTerminalSetup();
     handleResize();
   }
 
@@ -143,7 +144,7 @@ function buildPane(node) {
   });
 
   if (node.type === 'terminal') {
-    setupTerminal(content, refresh, node, paneId);
+    setupTerminalWhenVisible(content, refresh, node, paneId);
   }
 
   if (node.type === 'web') {
