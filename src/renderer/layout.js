@@ -1,4 +1,4 @@
-import { setupTerminal, handleResize } from './terminal.js';
+import { setupTerminal, handleResize, focusFirstTerminalInElement } from './terminal.js';
 import {
   createWebview,
   loadWebviewUrl,
@@ -85,7 +85,15 @@ function buildTabs(node) {
   }
 
   panels.forEach((entry, index) => {
-    entry.tabButton.addEventListener('click', () => setActiveTab(index));
+    entry.tabButton.addEventListener('click', () => {
+      setActiveTab(index);
+      entry.tabButton.blur();
+      if (!focusFirstTerminalInElement(entry.panel)) {
+        setTimeout(() => {
+          focusFirstTerminalInElement(entry.panel);
+        }, 0);
+      }
+    });
   });
 
   if (panels.length > 0) {
@@ -122,6 +130,17 @@ function buildPane(node) {
 
   pane.appendChild(titlebar);
   pane.appendChild(content);
+
+  refresh.addEventListener('click', () => {
+    const activeTabPanel = refresh.closest('.tab-panel.active');
+    const tabPanel = activeTabPanel || refresh.closest('.tab-panel');
+    const focusScope = tabPanel || pane;
+
+    refresh.blur();
+    setTimeout(() => {
+      focusFirstTerminalInElement(focusScope);
+    }, 0);
+  });
 
   if (node.type === 'terminal') {
     setupTerminal(content, refresh, node, paneId);
